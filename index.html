@@ -11,23 +11,16 @@
             background-color: var(--tg-theme-bg-color, #f4f4f5); 
             color: var(--tg-theme-text-color, #000000); 
             margin: 0; padding: 15px; box-sizing: border-box; 
-            padding-bottom: 50px;
         }
-        
         .tab-container { display: flex; background-color: #e4e4e5; border-radius: 8px; padding: 3px; margin-bottom: 20px; }
         .tab { flex: 1; text-align: center; padding: 8px 2px; font-size: 13px; font-weight: 500; border-radius: 6px; cursor: pointer; color: #8e8e93; }
         .tab.active { background-color: #ffffff; color: #000000; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        
         .form-section { display: none; background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .form-section.active { display: block; }
-        
         .input-group { margin-bottom: 15px; }
         label { display: block; font-size: 13px; margin-bottom: 5px; color: #8e8e93; }
         input, select { width: 100%; padding: 12px; border: 1px solid #e4e4e5; border-radius: 8px; font-size: 16px; box-sizing: border-box; background-color: #fff; color: #000; }
-        
         #calc-btn { width: 100%; padding: 15px; margin-top: 20px; background-color: #2481cc; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
-        
-        /* Result Box Styling */
         #result-container { 
             display: none; 
             margin-top: 20px; 
@@ -40,7 +33,6 @@
             line-height: 1.5;
             color: #1a1a1a;
         }
-        
         .loading { opacity: 0.5; pointer-events: none; }
     </style>
 </head>
@@ -74,21 +66,13 @@
     </div>
 
     <button id="calc-btn" onclick="calculateResult()">Calculate Now</button>
-
     <div id="result-container"></div>
 
     <script>
-        // CHANGE THIS to your actual Cloud Function URL
         const GCP_URL = "https://us-central1-loanamie.cloudfunctions.net/loanamie-webhook";
-        
         let currentAction = 'standard_emi';
         let tg = window.Telegram ? window.Telegram.WebApp : null;
-
-        if (tg) {
-            tg.expand();
-            // We use a custom button inside HTML for better reliability 
-            // than the TG MainButton for direct API calls
-        }
+        if (tg) tg.expand();
 
         function switchTab(tabElement, actionName) {
             currentAction = actionName;
@@ -102,7 +86,6 @@
         async function calculateResult() {
             const btn = document.getElementById('calc-btn');
             const resultBox = document.getElementById('result-container');
-            
             let payload = { action: currentAction };
 
             if (currentAction === 'standard_emi') {
@@ -119,15 +102,13 @@
                 payload.target_emi = document.getElementById('tgt_emi').value;
             }
 
-            if (Object.values(payload).some(v => v === "" || v === undefined)) {
+            if (Object.values(payload).some(v => v === "")) {
                 alert("Please fill all fields");
                 return;
             }
 
-            // Show loading state
             btn.innerText = "Calculating...";
             btn.classList.add('loading');
-            resultBox.style.display = 'none';
 
             try {
                 const response = await fetch(GCP_URL, {
@@ -135,27 +116,12 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
-                if (response.ok) {
-                    // Note: Since we want to display the message in the app, 
-                    // we expect the JSON back. 
-                    const data = await response.json();
-                    
-                    // Clean up Markdown-style bolding for HTML display
-                    let cleanMessage = data.message || "No response message.";
-                    cleanMessage = cleanMessage.replace(/\*\*/g, "").replace(/\*/g, "");
-                    
-                    resultBox.innerText = cleanMessage;
-                    resultBox.style.display = 'block';
-                    
-                    // Haptic feedback for Telegram users
-                    if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-                } else {
-                    alert("Error: Server returned " + response.status);
-                }
+                const data = await response.json();
+                resultBox.innerText = data.message.replace(/\*/g, ""); // Remove bold markers for display
+                resultBox.style.display = 'block';
+                if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
             } catch (error) {
-                console.error(error);
-                alert("Connection failed. Is the Backend running?");
+                alert("Error: Check your Internet or Backend.");
             } finally {
                 btn.innerText = "Calculate Now";
                 btn.classList.remove('loading');
