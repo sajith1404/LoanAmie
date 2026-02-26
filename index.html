@@ -33,6 +33,7 @@
             line-height: 1.5;
             color: #1a1a1a;
         }
+        .disclaimer { font-size: 11px; color: #8e8e93; margin-top: 15px; line-height: 1.4; text-align: justify; border-top: 1px solid #eee; padding-top: 10px; }
         .loading { opacity: 0.5; pointer-events: none; }
     </style>
 </head>
@@ -40,7 +41,7 @@
 
     <div class="tab-container">
         <div class="tab active" onclick="switchTab(this, 'standard_emi')">Standard EMI</div>
-        <div class="tab" onclick="switchTab(this, 'part_payment')">Fast Track</div>
+        <div class="tab" onclick="switchTab(this, 'part_payment')">Fast Track EMI</div>
         <div class="tab" onclick="switchTab(this, 'target_emi')">Affordability</div>
     </div>
 
@@ -54,10 +55,19 @@
         <div class="input-group"><label>Loan Amount (₹)</label><input type="number" id="pp_amount" placeholder="500000"></div>
         <div class="input-group"><label>Interest Rate (% p.a.)</label><input type="number" step="0.1" id="pp_rate" placeholder="8.5"></div>
         <div class="input-group"><label>Tenure (Months)</label><input type="number" id="pp_tenure" placeholder="120"></div>
-        <div class="input-group"><label>Extra Payment (₹)</label><input type="number" id="pp_extra" placeholder="10000"></div>
+        <div class="input-group"><label>Part Payment Amount (₹)</label><input type="number" id="pp_extra" placeholder="10000"></div>
         <div class="input-group">
-            <label>Frequency</label>
+            <label>Payment Frequency</label>
             <select id="pp_freq"><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
+        </div>
+        <div class="input-group">
+            <label>Part Payment Charges Type</label>
+            <select id="pp_charge_type"><option value="fixed">Fixed Amount (₹)</option><option value="percent">Percentage (%)</option></select>
+        </div>
+        <div class="input-group"><label>Charge Value</label><input type="number" id="pp_charge_val" value="0"></div>
+        
+        <div class="disclaimer">
+            ⚠️ <b>Disclaimer:</b> These calculations are indicative and may vary based on your bank's specific policies. Most financial institutions enforce lock-in periods (often 6-12 months) where part payments are restricted, and may apply varying processing fees or penalties for early repayment.
         </div>
     </div>
 
@@ -98,6 +108,8 @@
                 payload.tenure = document.getElementById('pp_tenure').value;
                 payload.part_payment = document.getElementById('pp_extra').value;
                 payload.frequency = document.getElementById('pp_freq').value;
+                payload.charge_type = document.getElementById('pp_charge_type').value;
+                payload.charge_val = document.getElementById('pp_charge_val').value;
             } else if (currentAction === 'target_emi') {
                 payload.target_emi = document.getElementById('tgt_emi').value;
             }
@@ -117,11 +129,11 @@
                     body: JSON.stringify(payload)
                 });
                 const data = await response.json();
-                resultBox.innerText = data.message.replace(/\*/g, ""); // Remove bold markers for display
+                resultBox.innerText = data.message;
                 resultBox.style.display = 'block';
                 if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
             } catch (error) {
-                alert("Error: Check your Internet or Backend.");
+                alert("Calculation failed. Please check your inputs.");
             } finally {
                 btn.innerText = "Calculate Now";
                 btn.classList.remove('loading');
