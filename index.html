@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LoanAmie Calculator</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background-color: var(--tg-theme-bg-color, #f4f4f5); 
+            color: var(--tg-theme-text-color, #000000); 
+            margin: 0; padding: 15px; box-sizing: border-box; 
+        }
+        
+        .tab-container { display: flex; background-color: #e4e4e5; border-radius: 8px; padding: 3px; margin-bottom: 20px; }
+        .tab { flex: 1; text-align: center; padding: 8px 2px; font-size: 13px; font-weight: 500; border-radius: 6px; cursor: pointer; color: #8e8e93; }
+        .tab.active { background-color: #ffffff; color: #000000; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        
+        .form-section { display: none; background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .form-section.active { display: block; }
+        
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 13px; margin-bottom: 5px; color: #8e8e93; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #e4e4e5; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        
+        /* The standard HTML button for browser testing */
+        #browser-test-btn { width: 100%; padding: 15px; margin-top: 20px; background-color: #2481cc; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="tab-container">
+        <div class="tab active" onclick="switchTab(this, 'standard_emi')">Standard Loan EMI</div>
+        <div class="tab" onclick="switchTab(this, 'part_payment')">Fast Tracked EMI</div>
+        <div class="tab" onclick="switchTab(this, 'target_emi')">My Affordability</div>
+    </div>
+
+    <div id="form_standard_emi" class="form-section active">
+        <div class="input-group">
+            <label>Loan Amount (₹)</label>
+            <input type="number" id="std_amount" placeholder="e.g., 500000">
+        </div>
+        <div class="input-group">
+            <label>Interest Rate (% p.a.)</label>
+            <input type="number" step="0.1" id="std_rate" placeholder="e.g., 8.5">
+        </div>
+        <div class="input-group">
+            <label>Tenure (Months)</label>
+            <input type="number" id="std_tenure" placeholder="e.g., 120">
+        </div>
+    </div>
+
+    <div id="form_part_payment" class="form-section">
+        <div class="input-group">
+            <label>Loan Amount (₹)</label>
+            <input type="number" id="pp_amount" placeholder="e.g., 500000">
+        </div>
+        <div class="input-group">
+            <label>Interest Rate (% p.a.)</label>
+            <input type="number" step="0.1" id="pp_rate" placeholder="e.g., 8.5">
+        </div>
+        <div class="input-group">
+            <label>Tenure (Months)</label>
+            <input type="number" id="pp_tenure" placeholder="e.g., 120">
+        </div>
+        <div class="input-group">
+            <label>Part Payment Amount (₹)</label>
+            <input type="number" id="pp_extra" placeholder="e.g., 10000">
+        </div>
+        <div class="input-group">
+            <label>Frequency</label>
+            <select id="pp_freq">
+                <option value="monthly">Every Month</option>
+                <option value="yearly">Once a Year</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="form_target_emi" class="form-section">
+        <div class="input-group">
+            <label>I can pay an EMI of (₹)</label>
+            <input type="number" id="tgt_emi" placeholder="e.g., 15000">
+        </div>
+        <p style="font-size: 12px; color: gray; text-align: center; margin-top: 10px;">We will calculate your maximum loan limits across current market interest rates and various tenures.</p>
+    </div>
+
+    <button id="browser-test-btn" onclick="sendDataToBot()">Calculate EMI</button>
+
+    <script>
+        let currentAction = 'standard_emi';
+        
+        // 1. Safely define Telegram variables
+        let tg = window.Telegram ? window.Telegram.WebApp : null;
+        let isTelegram = false;
+
+        // 2. Strict check: Are we actually inside the Telegram App?
+        if (tg && tg.initDataUnsafe && Object.keys(tg.initDataUnsafe).length > 0) {
+            isTelegram = true;
+        }
+
+        // 3. Initial Setup (Wait for page to load)
+        window.onload = function() {
+            if (isTelegram) {
+                document.getElementById('browser-test-btn').style.display = 'none'; // Hide HTML button
+                try {
+                    tg.expand();
+                    tg.MainButton.text = "Calculate EMI";
+                    tg.MainButton.onClick(sendDataToBot);
+                    tg.MainButton.show();
+                } catch (e) {
+                    console.log("Telegram button error:", e);
+                }
+            }
+        };
+
+        // 4. Tab Switching Logic
+        function switchTab(tabElement, actionName) {
+            currentAction = actionName;
+
+            // Update Tabs Safely
+            let allTabs = document.getElementsByClassName('tab');
+            for (let i = 0; i < allTabs.length; i++) {
+                allTabs[i].classList.remove('active');
+            }
+            tabElement.classList.add('active');
+
+            // Update Forms Safely
+            let allForms = document.getElementsByClassName('form-section');
+            for (let i = 0; i < allForms.length; i++) {
+                allForms[i].classList.remove('active');
+            }
+            document.getElementById('form_' + actionName).classList.add('active');
+
+            // Determine Button Text
+            let btnText = "Calculate EMI";
+            if (actionName === 'part_payment') {
+                btnText = "Calculate Savings";
+            } else if (actionName === 'target_emi') {
+                btnText = "Find My Limits";
+            }
+
+            // Apply Text Safely
+            if (isTelegram) {
+                try {
+                    tg.MainButton.text = btnText;
+                } catch(e) {}
+            } else {
+                document.getElementById('browser-test-btn').innerText = btnText;
+            }
+        }
+
+        // 5. Data Packaging & Sending
+        function sendDataToBot() {
+            let payload = { action: currentAction };
+
+            if (currentAction === 'standard_emi') {
+                payload.amount = document.getElementById('std_amount').value;
+                payload.rate = document.getElementById('std_rate').value;
+                payload.tenure = document.getElementById('std_tenure').value;
+            } 
+            else if (currentAction === 'part_payment') {
+                payload.amount = document.getElementById('pp_amount').value;
+                payload.rate = document.getElementById('pp_rate').value;
+                payload.tenure = document.getElementById('pp_tenure').value;
+                payload.part_payment = document.getElementById('pp_extra').value;
+                payload.frequency = document.getElementById('pp_freq').value;
+            } 
+            else if (currentAction === 'target_emi') {
+                payload.target_emi = document.getElementById('tgt_emi').value;
+            }
+
+            // Validation
+            if (Object.values(payload).some(val => val.trim() === "")) {
+                alert("Please fill out all required fields.");
+                return;
+            }
+
+            // Routing
+            if (isTelegram) {
+                try {
+                    tg.sendData(JSON.stringify(payload));
+                } catch(e) {
+                    alert("Error sending to Telegram.");
+                }
+            } else {
+                // --- NEW LOCAL TESTING LOGIC ---
+                // Send the payload to the local Flask server
+                fetch('http://127.0.0.1:5000/webhook', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Display the formatted text response from Python!
+                    alert("Bot Response:\n\n" + data.message);
+                })
+                .catch(error => {
+                    alert("Error: Could not connect to local server. Is app.py running?");
+                    console.error("Error:", error);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
